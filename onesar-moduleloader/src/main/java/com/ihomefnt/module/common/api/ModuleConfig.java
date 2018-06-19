@@ -37,7 +37,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 public class ModuleConfig extends ToStringObject {
 
   /**
-   * spring扫描注解的包，当该set不为空时启动包扫描，将自动扫描注解形式的bean
+   * spring扫描注解的包，当该set不为空时启动包扫描，将自动扫描注解形式的bean；springboot项目扫描启动mainclass
    * <p>
    * <strong>当xml中和注解同时定义了一个相同名字的bean将会以xml中的为主，也就是注解定义的bean会被xml定义的bean 覆盖</strong>
    * <p>

@@ -167,48 +167,57 @@ public class SpringModule implements Module {
     Map<String, T> actions = Maps.newHashMap();
     URL url = moduleConfig.getModuleUrl().get(0);
     // find Action in module
+    List<URL> urlLoaderList = Lists.newArrayList();
+    JarFileArchive archive =null;
     Class<?> loadClass = null;
+    Manifest manifest =null;
     try {
-      JarFileArchive archive = new JarFileArchive(new File(url.getFile().replace("file:", "")));
+      archive=new JarFileArchive(new File(url.getFile().replace("file:", "")));
       List<Archive> archiveList = new FatJarLaucher(archive).queryJarNestArchives();
-      List<URL> urlLoaderList = Lists.newArrayList();
+
       for (Archive arc : archiveList) {
         URL tmp = arc.getUrl();
         urlLoaderList.add(tmp);
       }
-      Manifest manifest = archive.getManifest();
-      String mainClass = null;
-      if (manifest != null) {
-        mainClass = manifest.getMainAttributes().getValue("Start-Class");
-      }
-      LOGGER.info("load url:{}", JSON.toJSONString(urlLoaderList));
-      LaunchedURLClassLoader classLoader = new LaunchedURLClassLoader(
-          urlLoaderList.toArray(new URL[]{}), moduleClassLoader);
-      loadClass = classLoader.loadClass(mainClass);
+      manifest=archive.getManifest();
     } catch (Exception e) {
       LOGGER.error("file is not illege:{}", ExceptionUtils.getStackTrace(e));
     }
+    String mainClass = null;
+    if (manifest != null) {
+      mainClass = manifest.getMainAttributes().getValue("Start-Class");
+    }
+    LOGGER.info("load url:{}", JSON.toJSONString(urlLoaderList));
+    LaunchedURLClassLoader classLoader = new LaunchedURLClassLoader(
+        urlLoaderList.toArray(new URL[]{}), moduleClassLoader);
+
     T action = null;
     try {
+      loadClass = classLoader.loadClass(mainClass);
       action = (T) loadClass.newInstance();
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (Exception e) {
       LOGGER.error("IllegalAccessException:{}", ExceptionUtils.getStackTrace(e));
     }
-    String actionName = keyFunction.apply(action);
-    if (isBlank(actionName)) {
-      throw new ModuleRuntimeException("JarsLink scanActions actionName is null");
+
+    if(action instanceof  Action){
+      String actionName = keyFunction.apply(action);
+      if (isBlank(actionName)) {
+        throw new ModuleRuntimeException("JarsLink scanActions actionName is null");
+      }
+      String key = actionName.toUpperCase(Locale.CHINESE);
+      checkState(!actions.containsKey(key), "Duplicated action %s found by: %s", type.getSimpleName(),
+          key);
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("Onesar Scan action: {}: bean: {}", key, action);
+      }
+      actions.put(key, action);
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("Onesar Scan actions finish: {}", ToStringBuilder.reflectionToString(actions));
+      }
+      return actions;
+    }else{
+      return actions;
     }
-    String key = actionName.toUpperCase(Locale.CHINESE);
-    checkState(!actions.containsKey(key), "Duplicated action %s found by: %s", type.getSimpleName(),
-        key);
-    if (LOGGER.isInfoEnabled()) {
-      LOGGER.info("Onesar Scan action: {}: bean: {}", key, action);
-    }
-    actions.put(key, action);
-    if (LOGGER.isInfoEnabled()) {
-      LOGGER.info("Onesar Scan actions finish: {}", ToStringBuilder.reflectionToString(actions));
-    }
-    return actions;
   }
 
   private void loadBeans(ApplicationContext context) {
